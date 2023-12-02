@@ -29,7 +29,8 @@ def do_stuff():
     data_file = open(input_file)
     lines = data_file.read().split('\n')
 
-    output = 0
+    possible_game_indices = 0
+    power_sum = 0
 
     for line in lines:
         colon_parts = line.split(':')
@@ -54,9 +55,12 @@ def do_stuff():
                     max_blue = max(max_blue, num)
 
         if max_red <= RED_MAX and max_green <= GREEN_MAX and max_blue <= BLUE_MAX:
-            output += game_index
+            possible_game_indices += game_index
 
-    print(f'Sum of possible game indices: {output}\n############################\n')
+        power_sum += (max_red * max_green * max_blue)
+
+    print(f'Sum of possible game indices: {possible_game_indices}\n############################\n')
+    print(f'Sum of power sets: {power_sum}\n############################\n')
 
 
 day_2()
