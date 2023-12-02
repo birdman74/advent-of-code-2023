@@ -4,8 +4,8 @@ INPUT_DIR = 'input'
 INPUT_FILE = 'day01.txt'
 
 # INPUT_DIR = os.path.join('input', 'samples')
-# INPUT_FILE = "day01-1.txt"
-# INPUT_FILE = "day01-2.txt"
+# INPUT_FILE = 'day01-1.txt'
+# INPUT_FILE = 'day01-2.txt'
 
 
 NUM_SUBS = {('one', '1'),
@@ -29,10 +29,10 @@ def day_1():
 
 def do_stuff():
     input_file = os.path.join(INPUT_SOURCE_DIR, INPUT_FILE)
-    print(f"Input file: {input_file}")
+    print(f'Input file: {input_file}')
 
     data_file = open(input_file)
-    lines = data_file.read().split("\n")
+    lines = data_file.read().split('\n')
 
     output = 0
 
@@ -66,7 +66,7 @@ def do_stuff():
 
         output += int(first_int_char + last_int_char)
 
-    print(f"Sum of calibration values: {output}\n############################\n")
+    print(f'Sum of calibration values: {output}\n############################\n')
 
 
 day_1()
