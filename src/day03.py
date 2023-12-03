@@ -46,7 +46,7 @@ def do_stuff():
                     number_coordinates.append(((num_first_char_index, y), (num_last_char_index, y)))
             else:
                 if char != SPACE:
-                    symbol_coordinates.append((x, y))
+                    symbol_coordinates.append((x, y, []))
 
                 if num_last_char_index != -1:
                     number_coordinates.append(((num_first_char_index, y), (num_last_char_index, y)))
@@ -68,9 +68,22 @@ def do_stuff():
             s_y = symbol_location[1]
 
             if min_x <= s_x <= max_x and min_y <= s_y <= max_y:
-                part_number_total += int(lines[y][x_1:x_2 + 1])
+                part_number = int(lines[y][x_1:x_2 + 1])
+
+                part_number_total += part_number
+
+                symbol_location[2].append(part_number)
 
     print(f'Part Number Total: {part_number_total}\n############################\n')
+
+    gear_ratio_total = 0
+
+    for symbol_location in symbol_coordinates:
+        adjacent_parts = symbol_location[2]
+        if len(adjacent_parts) == 2:
+            gear_ratio_total += (adjacent_parts[0] * adjacent_parts[1])
+
+    print(f'Gear Ratio Total: {gear_ratio_total}\n############################\n')
 
 
 day_3()
