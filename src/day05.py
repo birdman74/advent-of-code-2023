@@ -103,7 +103,7 @@ def find_destinations(source_range, maps):
                 # result: initial range of mapped values + remainder  of unmapped values
                 #                         ssssssssss
                 #            mmmmmmmmmmmmmmmmmmm
-                # unmapped:                     sssss
+                # unmapped:                     ssss
                 # mapped:                  nnnnn
                 dest_ranges.append((src_start + offset, map_end - src_start + 1))
                 new_unmapped_ranges.append((map_end + 1, src_end - map_end))
