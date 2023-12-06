@@ -21,37 +21,28 @@ def do_stuff():
     data_file = open(input_file)
     lines = data_file.read().split('\n')
 
-    times = [int(x) for x in lines[0].split(' ') if x.isnumeric()]
-    distances = [int(x) for x in lines[1].split(' ') if x.isnumeric()]
+    race_time = int(lines[0].split(':')[1].replace(' ', ''))
+    record = int(lines[1].split(':')[1].replace(' ', ''))
 
-    product = 1
+    button_time = 0
+    moving_time = 0
+    winning_combos = 0
 
-    for i in range(len(times)):
-        race_time = times[i]
-        record = distances[i]
+    if race_time % 2 == 0:
+        button_time = race_time / 2
+        moving_time = race_time / 2
+        winning_combos -= 1
+    else:
+        button_time = (race_time + 1) / 2
+        moving_time = button_time - 1
 
-        button_time = 0
-        moving_time = 0
-        winning_combos = 0
+    while button_time * moving_time > record:
+        winning_combos += 2
 
-        if race_time % 2 == 0:
-            button_time = race_time / 2
-            moving_time = race_time / 2
-            winning_combos -= 1
-        else:
-            button_time = (race_time + 1) / 2
-            moving_time = button_time - 1
+        button_time += 1
+        moving_time -= 1
 
-        while button_time * moving_time > record:
-            winning_combos += 2
-
-            button_time += 1
-            moving_time -= 1
-
-        if winning_combos > 0:
-            product *= winning_combos
-
-    print(f'Product: {product}\n############################\n')
+    print(f'Winning Combos: {winning_combos}\n############################\n')
 
 
 day_06()
