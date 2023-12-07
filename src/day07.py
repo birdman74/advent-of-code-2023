@@ -9,15 +9,16 @@ MODULE_DIR = os.path.dirname(os.path.realpath(__file__))
 PROJECT_DIR = os.path.join(MODULE_DIR, '..')
 INPUT_SOURCE_DIR = os.path.join(PROJECT_DIR, INPUT_DIR)
 
-CARD_STRENGTH = '23456789TJQKA'
-FIVE = '5OAK'
-FOUR = '4OAK'
-FULL_HOUSE = 'FH'
-THREE = '3OAK'
-TWO_PAIR = '2P'
-PAIR = 'P'
-HIGH_CARD = 'HC'
+CARD_STRENGTH = 'J23456789TQKA'
+FIVE = '5OAK'     # JJJJJ -> FIVE
+FOUR = '4OAK'     # J,JJJJ -> FIVE
+FULL_HOUSE = 'FH' # JJ,JJJ -> FIVE
+THREE = '3OAK'    # J,JJJ -> FOUR
+TWO_PAIR = '2P'   # J -> FULL_HOUSE, JJ -> FOUR
+PAIR = 'P'        # J,JJ -> THREE
+HIGH_CARD = 'HC'  # J -> PAIR
 TYPE_STRENGTH = [HIGH_CARD, PAIR, TWO_PAIR, THREE, FULL_HOUSE, FOUR, FIVE]
+WILD_CARD = 'J'
 
 
 def day_07():
@@ -92,21 +93,42 @@ def hand_type(cards):
             ranks[card] = 1
 
     if len(ranks) == 5:
-        return HIGH_CARD
+        if WILD_CARD in ranks.keys():
+            return PAIR
+        else:
+            return HIGH_CARD
     elif len(ranks) == 1:
         return FIVE
     elif len(ranks) == 4:
-        return PAIR
-    elif len(ranks) == 2:
-        if 4 in ranks.values():
-            return FOUR
-        else:
-            return FULL_HOUSE
-    else:
-        if 3 in ranks.values():
+        if WILD_CARD in ranks.keys():
             return THREE
         else:
-            return TWO_PAIR
+            return PAIR
+    elif len(ranks) == 2:
+        if 4 in ranks.values():
+            if WILD_CARD in ranks.keys():
+                return FIVE
+            else:
+                return FOUR
+        else:
+            if WILD_CARD in ranks.keys():
+                return FIVE
+            else:
+                return FULL_HOUSE
+    else:
+        if 3 in ranks.values():
+            if WILD_CARD in ranks.keys():
+                return FOUR
+            else:
+                return THREE
+        else:
+            if WILD_CARD in ranks.keys():
+                if ranks[WILD_CARD] == 1:
+                    return FULL_HOUSE
+                else:
+                    return FOUR
+            else:
+                return TWO_PAIR
 
 
 day_07()
