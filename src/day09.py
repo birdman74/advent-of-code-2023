@@ -22,23 +22,30 @@ def do_stuff():
     lines = data_file.read().split('\n')
 
     next_in_series_sum = 0
+    previous_in_series_sum = 0
 
     for line in lines:
         nums = list(map(int, line.split(' ')))
-        next_in_series_sum += next_in_series(nums)
 
+        (previous_in_series, next_in_series) = previous_and_next_in_series(nums)
+
+        previous_in_series_sum += previous_in_series
+        next_in_series_sum += next_in_series
+
+    print(f'Previous-in-Series sum: {previous_in_series_sum}\n############################\n')
     print(f'Next-in-Series sum: {next_in_series_sum}\n############################\n')
 
 
-def next_in_series(series):
+def previous_and_next_in_series(series):
     new_series = []
     for i in range(0, len(series) - 1):
         new_series.append(series[i + 1] - series[i])
 
     if len([x for x in new_series if x == 0]) == len(new_series):
-        return series[-1]
+        return series[0], series[-1]
     else:
-        return series[-1] + next_in_series(new_series)
+        (previous_in_series, next_in_series) = previous_and_next_in_series(new_series)
+        return series[0] - previous_in_series, series[-1] + next_in_series
 
 
 day_09()
