@@ -24,17 +24,68 @@ def do_stuff():
     data_file = open(input_file)
     pipe_map = data_file.read().split('\n')
 
+    pipe_locations = {}
     starting_point = find_starting_point(pipe_map)
-    move_positions = starting_point.move_next()
+    pipe_locations[starting_point.x, starting_point.y] = starting_point
 
-    moves = 1
+    move_positions = starting_point.next_moves()
 
     while move_positions[0] != move_positions[1]:
-        move_positions[0] = move_positions[0].move_next()[0]
-        move_positions[1] = move_positions[1].move_next()[0]
-        moves += 1
+        for p in move_positions:
+            pipe_locations[(p.x, p.y)] = p
+        move_positions[0] = move_positions[0].next_moves()[0]
+        move_positions[1] = move_positions[1].next_moves()[0]
 
-    print(f'Number of moves: {moves}\n############################\n')
+    furthest_point = move_positions[0]
+    pipe_locations[(furthest_point.x, furthest_point.y)] = furthest_point
+
+    nesting_point_count = 0
+
+    for x in range(len(pipe_map[0])):
+        for y in range(len(pipe_map)):
+            if nesting_point((x, y), pipe_locations):
+                nesting_point_count += 1
+
+    print(f'Number of nesting points: {nesting_point_count}\n############################\n')
+
+
+def nesting_point(p, pipe_locations):
+    if p in pipe_locations.keys():
+        return False
+
+    left_crosses = shoot_ray_left(pipe_locations, p)
+    if left_crosses > 0:
+        return left_crosses % 2 == 1
+
+    return False
+
+
+def shoot_ray_left(pipe_locations, start_point):
+    combos = [[PointType.SWL, PointType.NEL], [PointType.NWL, PointType.SEL]]
+    combo_index = -1
+
+    crossings = 0
+
+    y = start_point[1]
+    for x in range(start_point[0] - 1, -1, -1):
+        point = (x, y)
+
+        if point in pipe_locations.keys():
+            p = pipe_locations[point]
+            if p.point_type == PointType.VERTICAL:
+                crossings += 1
+                combo_index = -1
+            elif p.point_type == combos[0][0]:
+                combo_index = 0
+            elif p.point_type == combos[1][0]:
+                combo_index = 1
+            elif combo_index >= 0 and p.point_type == combos[combo_index][1]:
+                crossings += 1
+                combo_index = -1
+            elif p.point_type != PointType.HORIZONTAL:
+                combo_index = -1
+
+    return crossings
 
 
 def find_starting_point(pipe_map):
@@ -42,15 +93,16 @@ def find_starting_point(pipe_map):
         line = pipe_map[y]
         x = line.find(START)
         if x > -1:
-            return PointDay10(x, y, pipe_map, Direction.ORIGIN)
+            return PointDay10(x, y, pipe_map, Direction.NOWHERE)
 
 
 class PointDay10:
-    def __init__(self, x, y, pipe_map, from_direction):
+    def __init__(self, x, y, pipe_map, from_direction, point_type=None):
         self.x = x
         self.y = y
         self.pipe_map = pipe_map
         self.from_direction = from_direction
+        self.point_type = PointType(pipe_map[y][x])
 
     def __str__(self):
         return '(' + str(self.x) + ', ' + str(self.y) + ')'
@@ -61,27 +113,51 @@ class PointDay10:
 
         return self.x == other.x and self.y == other.y
 
-    def move_next(self):
+    def __hash__(self):
+        return hash((self.x, self.y))
+
+    def next_moves(self):
         possible_moves = []
+        directions = []
         try:
             possible_moves.append(self.left())
+            directions.append(Direction.WEST)
         except IndexError:
             pass
 
         try:
             possible_moves.append(self.up())
+            directions.append(Direction.NORTH)
         except IndexError:
             pass
 
         try:
             possible_moves.append(self.right())
+            directions.append(Direction.EAST)
         except IndexError:
             pass
 
         try:
             possible_moves.append(self.down())
+            directions.append(Direction.SOUTH)
         except IndexError:
             pass
+
+        if self.point_type == PointType.ANIMAL:
+            if Direction.WEST in directions:
+                if Direction.EAST in directions:
+                    self.point_type = PointType.HORIZONTAL
+                elif Direction.NORTH in directions:
+                    self.point_type = PointType.NWL
+                else:
+                    self.point_type = PointType.SWL
+            elif Direction.NORTH in directions:
+                if Direction.SOUTH in directions:
+                    self.point_type = PointType.VERTICAL
+                else:
+                    self.point_type = PointType.NEL
+            else:
+                self.point_type = PointType.SEL
 
         return possible_moves
 
@@ -89,10 +165,10 @@ class PointDay10:
         new_x = self.x - 1
 
         if (self.from_direction == Direction.WEST or self.x == 0 or
-                PipeType(self.pipe_map[self.y][self.x]) in
-                [PipeType.VERTICAL, PipeType.NEL, PipeType.SEL] or
-                PipeType(self.pipe_map[self.y][new_x]) in
-                [PipeType.VERTICAL, PipeType.NWL, PipeType.SWL, PipeType.GROUND]):
+                PointType(self.pipe_map[self.y][self.x]) in
+                [PointType.VERTICAL, PointType.NEL, PointType.SEL] or
+                PointType(self.pipe_map[self.y][new_x]) in
+                [PointType.VERTICAL, PointType.NWL, PointType.SWL, PointType.GROUND]):
             raise IndexError("Can't move left")
 
         return PointDay10(new_x, self.y, self.pipe_map, Direction.EAST)
@@ -101,10 +177,10 @@ class PointDay10:
         new_x = self.x + 1
 
         if (self.from_direction == Direction.EAST or self.x == len(self.pipe_map[0]) - 1 or
-                PipeType(self.pipe_map[self.y][self.x]) in
-                [PipeType.VERTICAL, PipeType.NWL, PipeType.SWL] or
-                PipeType(self.pipe_map[self.y][new_x]) in
-                [PipeType.VERTICAL, PipeType.NEL, PipeType.SEL, PipeType.GROUND]):
+                PointType(self.pipe_map[self.y][self.x]) in
+                [PointType.VERTICAL, PointType.NWL, PointType.SWL] or
+                PointType(self.pipe_map[self.y][new_x]) in
+                [PointType.VERTICAL, PointType.NEL, PointType.SEL, PointType.GROUND]):
             raise IndexError("Can't move right")
 
         return PointDay10(self.x + 1, self.y, self.pipe_map, Direction.WEST)
@@ -113,10 +189,10 @@ class PointDay10:
         new_y = self.y - 1
 
         if (self.from_direction == Direction.NORTH or self.y == 0 or
-                PipeType(self.pipe_map[self.y][self.x]) in
-                [PipeType.HORIZONTAL, PipeType.SEL, PipeType.SWL] or
-                PipeType(self.pipe_map[new_y][self.x]) in
-                [PipeType.HORIZONTAL, PipeType.NEL, PipeType.NWL, PipeType.GROUND]):
+                PointType(self.pipe_map[self.y][self.x]) in
+                [PointType.HORIZONTAL, PointType.SEL, PointType.SWL] or
+                PointType(self.pipe_map[new_y][self.x]) in
+                [PointType.HORIZONTAL, PointType.NEL, PointType.NWL, PointType.GROUND]):
             raise IndexError("Can't move up")
 
         return PointDay10(self.x, self.y - 1, self.pipe_map, Direction.SOUTH)
@@ -125,16 +201,17 @@ class PointDay10:
         new_y = self.y + 1
 
         if (self.from_direction == Direction.SOUTH or self.y == len(self.pipe_map) - 1 or
-                PipeType(self.pipe_map[self.y][self.x]) in
-                [PipeType.HORIZONTAL, PipeType.NWL, PipeType.NEL] or
-                PipeType(self.pipe_map[new_y][self.x]) in
-                [PipeType.HORIZONTAL, PipeType.SWL, PipeType.SEL, PipeType.GROUND]):
+                PointType(self.pipe_map[self.y][self.x]) in
+                [PointType.HORIZONTAL, PointType.NWL, PointType.NEL] or
+                PointType(self.pipe_map[new_y][self.x]) in
+                [PointType.HORIZONTAL, PointType.SWL, PointType.SEL, PointType.GROUND]):
             raise IndexError("Can't move down")
 
         return PointDay10(self.x, self.y + 1, self.pipe_map, Direction.NORTH)
 
 
-class PipeType(Enum):
+# Tunnels: ||, 7F, JL, -/-, L/F, J/7
+class PointType(Enum):
     VERTICAL = '|'
     HORIZONTAL = '-'
     NEL = 'L'
@@ -150,7 +227,7 @@ class Direction(Enum):
     SOUTH = 'S'
     EAST = 'E'
     WEST = 'W'
-    ORIGIN = '*'
+    NOWHERE = '*'
 
 
 day_10()
