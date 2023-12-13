@@ -25,71 +25,96 @@ def do_stuff():
     rows_above_ref_line = 0
 
     field = []
+    field_number = 1
     for line in lines:
         if line:
             field.append(line)
         else:
+            print(f'Analyzing Field {field_number}')
             (cols, rows) = analyze_field(field)
+            print(f'Results: ({cols}, {rows})')
             columns_left_of_ref_line += cols
             rows_above_ref_line += rows
             field = []
+            field_number += 1
 
+    print(f'Analyzing Field {field_number}')
     (cols, rows) = analyze_field(field)
+    print(f'Results: ({cols}, {rows})')
     columns_left_of_ref_line += cols
     rows_above_ref_line += rows
-    field = []
 
     answer = columns_left_of_ref_line + (100 * rows_above_ref_line)
     print(f'Summary output: {answer}\n############################\n')
 
 
 def analyze_field(field):
-    height = len(field)
-    width = len(field[0])
+    row_results = work_the_list(field)
 
-    top_matching_rows = []
-    for i in range(height - 1):
-        if field[i] == field[i + 1]:
-            top_matching_rows.append(i)
+    if row_results == 0:
+        width = len(field[0])
+        columns = []
+        for i in range(width):
+            columns.append(column(field, i))
+        return work_the_list(columns), 0
 
-    for row_index in top_matching_rows:
-        found_reflection_point = True
-        row1 = row_index
-        row2 = row1 + 1
-        while row1 > -1 and row2 < height:
-            if field[row1] != field[row2]:
-                found_reflection_point = False
-                break
-            row1 -= 1
-            row2 += 1
+    return 0, row_results
 
-        if found_reflection_point:
-            return 0, row_index + 1
 
-    matching_left_columns = []
-    for i in range(width - 1):
-        col1 = ''.join([line[i] for line in field])
-        col2 = ''.join([line[i + 1] for line in field])
+def work_the_list(lines):
+    line_count = len(lines)
+    matches = []
 
-        if col1 == col2:
-            matching_left_columns.append(i)
+    if possible_smudge(lines[0], lines[1]):
+        return 1
+    elif possible_smudge(lines[line_count - 2], lines[line_count - 1]):
+        return line_count - 1
+    else:
+        for i in range(line_count - 1):
+            for j in range(i + 1, line_count):
+                if lines[i] == lines[j]:
+                    matches.append((i, j))
 
-    for left_col_index in matching_left_columns:
-        found_reflection_point = True
-        col1_index = left_col_index
-        col2_index = col1_index + 1
-        while col1_index > -1 and col2_index < width:
-            col1 = ''.join([line[col1_index] for line in field])
-            col2 = ''.join([line[col2_index] for line in field])
+        for match in matches:
+            if (match[1] - match[0]) % 2 == 0:
+                continue
 
-            if col1 != col2:
-                found_reflection_point = False
-                break
-            col1_index -= 1
-            col2_index += 1
+            start_low_index = int(match[1] - ((match[1] - match[0] + 1) / 2))
+            low_index = start_low_index
+            high_index = low_index + 1
+            smudge_pair = ()
 
-        if found_reflection_point:
-            return left_col_index + 1, 0
+            while low_index > -1 and high_index < line_count:
+                pair = (low_index, high_index)
+                low_index -= 1
+                high_index += 1
+
+                if pair not in matches:
+                    if smudge_pair:
+                        smudge_pair = ()
+                        break
+
+                    smudge_pair = pair
+
+            if smudge_pair and possible_smudge(lines[smudge_pair[0]], lines[smudge_pair[1]]):
+                return start_low_index + 1
+
+    return 0
+
+
+def column(field, index):
+    return ''.join([line[index] for line in field])
+
+
+def possible_smudge(line1, line2):
+    diffs = 0
+    for i in range(len(line1)):
+        if line1[i] != line2[i]:
+            diffs += 1
+        if diffs > 1:
+            return False
+
+    return diffs == 1
 
 
 day_13()
