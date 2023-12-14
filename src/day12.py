@@ -1,4 +1,5 @@
 import os
+import functools
 
 # INPUT_DIR = os.path.join('input', 'samples')
 INPUT_DIR = 'input'
@@ -28,24 +29,30 @@ def do_stuff():
     lines = data_file.read().split('\n')
 
     total = 0
+    i = 1
 
     for line in lines:
         pieces = line.split(' ')
         springs = pieces[0]
-        nums = list(map(int, pieces[1].split(',')))
+        springs = 4 * (springs + UNKNOWN) + springs
+        nums = list(map(int, (4 * (pieces[1] + ',') + pieces[1]).split(',')))
 
-        arrangement_count = possible_arrangements(springs, nums)
-        # print(f'{springs} {nums}: {arrangement_count}')
+        print(f'{i}. {springs} {nums}')
+
+        arrangement_count = possible_arrangements(springs, tuple(nums))
+        print(f'\tArrangement count: {arrangement_count}')
 
         total += arrangement_count
+        i += 1
 
     print(f'Total Arrangements: {total}\n############################\n')
 
 
+@functools.cache
 def possible_arrangements(springs, damaged_nums):
     count = 0
     first_span = damaged_nums[0]
-    min_length = sum(damaged_nums) + len(damaged_nums) - 1
+    min_length = min_array_length(damaged_nums)
 
     for i in range(0, len(springs) - min_length + 1):
         if springs[0:i].find(DAMAGED) > -1:
@@ -76,6 +83,10 @@ def possible_arrangements(springs, damaged_nums):
             return count
 
     return count
+
+
+def min_array_length(groups):
+    return sum(groups) + len(groups) - 1
 
 
 day_12()
