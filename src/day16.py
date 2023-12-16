@@ -21,25 +21,38 @@ def do_stuff():
     data_file = open(input_file)
     field = data_file.read().split('\n')
 
-    energized_tiles = [(0, 0)]
-    beams = [[(0, 0, Direction.RIGHT)], []]
+    height = len(field)
+    width = len(field[0])
 
-    while len(beams[0]) > 0:
+    max_energy = 0
+    for i in range(height):
+        max_energy = max(max_energy, find_energy_total(field, 0, i, Direction.RIGHT))
+        max_energy = max(max_energy, find_energy_total(field, width - 1, i, Direction.LEFT))
+
+    for i in range(width):
+
+        max_energy = max(max_energy, find_energy_total(field, i, 0, Direction.DOWN))
+        max_energy = max(max_energy, find_energy_total(field, i, height - 1, Direction.UP))
+
+    print(f'Maximum energized tile count: {max_energy}\n############################\n')
+
+
+def find_energy_total(field, x, y, direction):
+    energized_tiles = {(x, y): True}
+    # print((x, y))
+    beams = {(x, y, direction): False}
+    while False in beams.values():
         move_beams(field, beams, energized_tiles)
-
-    print(f'Energized tile count: {len(energized_tiles)}\n############################\n')
+    return len(energized_tiles)
 
 
 def move_beams(field, beams, energized_tiles):
     h = len(field)
     w = len(field[0])
-    unprocessed_beams = beams[0]
+    unprocessed_beams = [k for k in beams.keys() if not beams[k]]
 
-    for i in range(len(unprocessed_beams) - 1, -1, -1):
-        beam = unprocessed_beams[i]
-        # move current beam from unprocessed list to processed
-        unprocessed_beams.remove(beam)
-        beams[1].append(beam)
+    for beam in unprocessed_beams:
+        beams[beam] = True
 
         match field[beam[1]][beam[0]]:
             case SpaceType.SPACE:
@@ -73,10 +86,9 @@ def just_move(b, beams, h, w, e_tiles):
 def add_new_beam(beams, new_beam, h, w, e_tiles):
     x, y, _ = new_beam
     if 0 <= x < w and 0 <= y < h:
-        if new_beam not in beams[1]:
-            beams[0].append(new_beam)
-        if (x, y) not in e_tiles:
-            e_tiles.append((x, y))
+        if new_beam not in beams.keys():
+            beams[new_beam] = False
+        e_tiles[(x, y)] = True
 
 
 def mirror_fs(b, beams, h, w, e_tiles):
