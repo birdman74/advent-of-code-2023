@@ -12,7 +12,7 @@ PROJECT_DIR = os.path.join(MODULE_DIR, '..')
 INPUT_SOURCE_DIR = os.path.join(PROJECT_DIR, INPUT_DIR)
 
 
-class Direction(Enum):
+class Dir(Enum):
     UP = 'U'
     DOWN = 'D'
     LEFT = 'L'
@@ -20,7 +20,7 @@ class Direction(Enum):
     ORIGIN = 'O'
 
 
-visited_nodes = {((0, 0), (Direction.ORIGIN,)): 0}
+visited_nodes = {((0, 0), (Dir.ORIGIN,)): 0}
 loss_map = []
 
 
@@ -41,7 +41,8 @@ def do_stuff():
 
     total_heat_loss = minimum_total_heat_loss((0, 0),
                                               finish_coordinates,
-                                              (Direction.ORIGIN, Direction.ORIGIN, Direction.ORIGIN))
+                                              (Dir.ORIGIN, Dir.ORIGIN, Dir.ORIGIN),
+                                              0)
 
     # 637 too high
 
@@ -49,74 +50,109 @@ def do_stuff():
 
 
 @functools.cache
-def minimum_total_heat_loss(current, destination, prev_dirs):
-    directions = new_directions(prev_dirs)
-    prev_two_dir = prev_dirs[1:3]
+def calc_heat_loss_for_steps(point, steps):
+    total_loss = 0
+    x = point[0]
+    y = point[1]
+    for step in steps:
+        offsets = coord_offsets(step)
+        x += offsets[0]
+        y += offsets[1]
+        total_loss += loss_map[y][x]
+    return total_loss
+
+
+@functools.cache
+def coord_offsets(dir):
+    match dir:
+        case Dir.LEFT:
+            return -1, 0
+        case Dir.RIGHT:
+            return 1, 0
+        case Dir.UP:
+            return 0, -1
+        case Dir.DOWN:
+            return 0, 1
+
+
+@functools.cache
+def new_position(current, combo):
+    x = current[0]
+    y = current[1]
+    for step in combo:
+        offsets = coord_offsets(step)
+        x += offsets[0]
+        y += offsets[1]
+    return x, y
+
+
+@functools.cache
+def combo_is_possible(current, combo, map_h, map_w):
+    for i in range(len(combo)):
+        sub_combo = combo[0:i+1]
+        x, y = new_position(current, sub_combo)
+        if not (0 <= x < map_w and 0 <= y < map_h):
+            return False
+    return True
+
+
+@functools.cache
+def minimum_total_heat_loss(current, destination, prev_dirs, current_heat_loss):
+    three_step_combos = step_combos(prev_dirs, 3)
     x = current[0]
     y = current[1]
     h = len(loss_map)
     w = len(loss_map[0])
-    current_pos_heat_loss = loss_map[y][x]
 
-    current_low = -1
-    for direction in directions:
-        match direction:
-            case Direction.LEFT:
-                new_x = x - 1
-                new_y = y
-                new_direction = Direction.LEFT
-            case Direction.RIGHT:
-                new_x = x + 1
-                new_y = y
-                new_direction = Direction.RIGHT
-            case Direction.UP:
-                new_x = x
-                new_y = y - 1
-                new_direction = Direction.UP
-            case _:
-                new_x = x
-                new_y = y + 1
-                new_direction = Direction.DOWN
-
-        if 0 <= new_x < w and 0 <= new_y < h:
-            new_coords = (new_x, new_y)
-            if new_coords == destination:
-                return current_pos_heat_loss + loss_map[destination[1]][destination[0]]
-
-            new_dir_tuple = (*prev_two_dir, new_direction)
-
-            new_destination_loss = minimum_total_heat_loss(new_coords, destination, new_dir_tuple)
-
-            if new_destination_loss != -1:
-                if current_low == -1:
-                    current_low = new_destination_loss
-                else:
-                    current_low = min(current_low, new_destination_loss)
-
-    if current_low == -1:
-        return current_low
-    else:
-        return current_low + current_pos_heat_loss
+    for combo in three_step_combos:
+        if combo_is_possible(current, combo, h, w):
+            new_location = new_position(current, combo)
+            if next != (0, 0):
+                new_location_heat_loss = current_heat_loss + calc_heat_loss_for_steps(current, combo)
+                visited_key = (new_location, combo)
+                if visited_key not in visited_nodes.keys() or new_location_heat_loss < visited_nodes[visited_key]:
+                    visited_nodes[visited_key] = new_location_heat_loss
 
 
 @functools.cache
-def new_directions(previous_directions):
-    if len(set(previous_directions)) == 1:
-        match previous_directions[0]:
-            case Direction.LEFT | Direction.RIGHT:
-                return Direction.DOWN, Direction.UP
-            case _:
-                return Direction.RIGHT, Direction.LEFT
+def step_combos(prev_steps, num_steps):
+    if num_steps == 1:
+        prev_two = prev_steps[1:]
+        with_d = prev_two + (Dir.DOWN,)
+        with_u = prev_two + (Dir.UP,)
+        with_l = prev_two + (Dir.LEFT,)
+        with_r = prev_two + (Dir.RIGHT,)
+        prev_all_same = len(set(prev_steps)) == 1
+        match prev_steps[-1]:
+            case Dir.ORIGIN:
+                return with_r, with_d
+            case Dir.LEFT:
+                if prev_all_same:
+                    return with_d, with_u
+                else:
+                    return with_d, with_u, with_l
+            case Dir.RIGHT:
+                if prev_all_same:
+                    return with_d, with_u
+                else:
+                    return with_r, with_d, with_u
+            case Dir.UP:
+                if prev_all_same:
+                    return with_r, with_l
+                else:
+                    return with_r, with_u, with_l
+            case Dir.DOWN:
+                if prev_all_same:
+                    return with_r, with_l
+                else:
+                    return with_r, with_d, with_l
     else:
-        match previous_directions[2]:
-            case Direction.LEFT:
-                return Direction.DOWN, Direction.LEFT, Direction.UP
-            case Direction.RIGHT:
-                return Direction.RIGHT, Direction.DOWN, Direction.UP
-            case Direction.UP:
-                return Direction.RIGHT, Direction.LEFT, Direction.UP
-            case _:
-                return Direction.RIGHT, Direction.DOWN, Direction.LEFT
+        step_sets = step_combos(prev_steps, 1)
+        new_results = ()
+        for new_steps in step_sets:
+            new_results += step_combos(new_steps, num_steps - 1)
+
+        return tuple(set(new_results))
 
 
 day_17()
