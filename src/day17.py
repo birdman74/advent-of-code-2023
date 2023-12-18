@@ -2,8 +2,8 @@ import os
 import functools
 from enum import Enum
 
-INPUT_DIR = os.path.join('input', 'samples')
-# INPUT_DIR = 'input'
+# INPUT_DIR = os.path.join('input', 'samples')
+INPUT_DIR = 'input'
 
 INPUT_FILE = 'day17.txt'
 
@@ -39,32 +39,22 @@ def do_stuff():
 
     finish_coordinates = (len(loss_map[0]) - 1, len(loss_map) - 1)
 
-    total_heat_loss = minimum_total_heat_loss((0, 0),
-                                              finish_coordinates,
-                                              (Dir.ORIGIN, Dir.ORIGIN, Dir.ORIGIN),
-                                              0)
+    walk_map(finish_coordinates)
 
-    # 637 too high
+    total_heat_loss = min([visited_nodes[k] for k in visited_nodes.keys() if k[0] == finish_coordinates])
 
     print(f'Minimum total heat loss: {total_heat_loss}\n############################\n')
 
 
 @functools.cache
-def calc_heat_loss_for_steps(point, steps):
-    total_loss = 0
-    x = point[0]
-    y = point[1]
-    for step in steps:
-        offsets = coord_offsets(step)
-        x += offsets[0]
-        y += offsets[1]
-        total_loss += loss_map[y][x]
-    return total_loss
+def heat_loss_at(point):
+    (x, y) = point
+    return loss_map[y][x]
 
 
 @functools.cache
-def coord_offsets(dir):
-    match dir:
+def coord_offsets(step_dir):
+    match step_dir:
         case Dir.LEFT:
             return -1, 0
         case Dir.RIGHT:
@@ -76,42 +66,50 @@ def coord_offsets(dir):
 
 
 @functools.cache
-def new_position(current, combo):
-    x = current[0]
-    y = current[1]
-    for step in combo:
-        offsets = coord_offsets(step)
-        x += offsets[0]
-        y += offsets[1]
-    return x, y
+def new_position(current, step_dir):
+    (x, y) = current
+    offsets = coord_offsets(step_dir)
+    return x + offsets[0], y + offsets[1]
 
 
 @functools.cache
-def combo_is_possible(current, combo, map_h, map_w):
-    for i in range(len(combo)):
-        sub_combo = combo[0:i+1]
-        x, y = new_position(current, sub_combo)
-        if not (0 <= x < map_w and 0 <= y < map_h):
-            return False
-    return True
-
-
-@functools.cache
-def minimum_total_heat_loss(current, destination, prev_dirs, current_heat_loss):
-    three_step_combos = step_combos(prev_dirs, 3)
-    x = current[0]
-    y = current[1]
+def step_is_possible(current, step_dir):
     h = len(loss_map)
     w = len(loss_map[0])
 
-    for combo in three_step_combos:
-        if combo_is_possible(current, combo, h, w):
-            new_location = new_position(current, combo)
-            if next != (0, 0):
-                new_location_heat_loss = current_heat_loss + calc_heat_loss_for_steps(current, combo)
-                visited_key = (new_location, combo)
-                if visited_key not in visited_nodes.keys() or new_location_heat_loss < visited_nodes[visited_key]:
-                    visited_nodes[visited_key] = new_location_heat_loss
+    x, y = new_position(current, step_dir)
+    return 0 <= x < w and 0 <= y < h
+
+
+def walk_map(destination):
+    unvisited = {((0, 0), (Dir.ORIGIN, Dir.ORIGIN, Dir.ORIGIN)): 0}
+    new_unvisited = {}
+
+    while len(unvisited) > 0:
+        current_solutions = [visited_nodes[k] for k in visited_nodes.keys() if k[0] == destination]
+        current_best_solution = min(current_solutions) if len(current_solutions) > 0 else 0
+
+        for key in unvisited.keys():
+            current = key[0]
+            prev_steps = key[1]
+            current_heat_loss = unvisited[key]
+
+            updated_step_combos = step_combos(prev_steps, 1)
+            for step_combo in updated_step_combos:
+                step = step_combo[2]
+                if step_is_possible(current, step):
+                    new_location = new_position(current, step)
+                    new_location_heat_loss = current_heat_loss + heat_loss_at(new_location)
+                    if 0 < current_best_solution < new_location_heat_loss:
+                        continue
+                    visited_key = (new_location, step_combo)
+                    if visited_key not in visited_nodes.keys() or new_location_heat_loss < visited_nodes[visited_key]:
+                        visited_nodes[visited_key] = new_location_heat_loss
+                        new_unvisited[visited_key] = new_location_heat_loss
+
+        unvisited = new_unvisited
+        new_unvisited = {}
+        print(f'new_unvisited length: {len(unvisited)}')
 
 
 @functools.cache
