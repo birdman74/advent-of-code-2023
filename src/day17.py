@@ -2,8 +2,8 @@ import os
 import functools
 from enum import Enum
 
-# INPUT_DIR = os.path.join('input', 'samples')
-INPUT_DIR = 'input'
+INPUT_DIR = os.path.join('input', 'samples')
+# INPUT_DIR = 'input'
 
 INPUT_FILE = 'day17.txt'
 
@@ -20,7 +20,7 @@ class Dir(Enum):
     ORIGIN = 'O'
 
 
-visited_nodes = {((0, 0), (Dir.ORIGIN,)): 0}
+visited_nodes = {}
 loss_map = []
 
 
@@ -82,7 +82,7 @@ def step_is_possible(current, step_dir):
 
 
 def walk_map(destination):
-    unvisited = {((0, 0), (Dir.ORIGIN, Dir.ORIGIN, Dir.ORIGIN)): 0}
+    unvisited = {((0, 0), (Dir.ORIGIN,) * 4): 0}
     new_unvisited = {}
 
     while len(unvisited) > 0:
@@ -94,15 +94,19 @@ def walk_map(destination):
             prev_steps = key[1]
             current_heat_loss = unvisited[key]
 
-            updated_step_combos = step_combos(prev_steps, 1)
-            for step_combo in updated_step_combos:
-                step = step_combo[2]
-                if step_is_possible(current, step):
-                    new_location = new_position(current, step)
-                    new_location_heat_loss = current_heat_loss + heat_loss_at(new_location)
+            moves = next_moves(prev_steps)
+            for move in moves:
+                if move_is_possible(current, move):
+                    new_steps = prev_steps
+                    if move[0] == prev_steps[0]:
+                        new_steps += move
+                    else:
+                        new_steps = move
+                    new_location = new_position(current, move)
+                    new_location_heat_loss = current_heat_loss + heat_loss_thru_move(current, move)
                     if 0 < current_best_solution < new_location_heat_loss:
                         continue
-                    visited_key = (new_location, step_combo)
+                    visited_key = (new_location, )
                     if visited_key not in visited_nodes.keys() or new_location_heat_loss < visited_nodes[visited_key]:
                         visited_nodes[visited_key] = new_location_heat_loss
                         new_unvisited[visited_key] = new_location_heat_loss
@@ -113,44 +117,37 @@ def walk_map(destination):
 
 
 @functools.cache
-def step_combos(prev_steps, num_steps):
-    if num_steps == 1:
-        prev_two = prev_steps[1:]
-        with_d = prev_two + (Dir.DOWN,)
-        with_u = prev_two + (Dir.UP,)
-        with_l = prev_two + (Dir.LEFT,)
-        with_r = prev_two + (Dir.RIGHT,)
-        prev_all_same = len(set(prev_steps)) == 1
-        match prev_steps[-1]:
-            case Dir.ORIGIN:
-                return with_r, with_d
-            case Dir.LEFT:
-                if prev_all_same:
-                    return with_d, with_u
-                else:
-                    return with_d, with_u, with_l
-            case Dir.RIGHT:
-                if prev_all_same:
-                    return with_d, with_u
-                else:
-                    return with_r, with_d, with_u
-            case Dir.UP:
-                if prev_all_same:
-                    return with_r, with_l
-                else:
-                    return with_r, with_u, with_l
-            case Dir.DOWN:
-                if prev_all_same:
-                    return with_r, with_l
-                else:
-                    return with_r, with_d, with_l
-    else:
-        step_sets = step_combos(prev_steps, 1)
-        new_results = ()
-        for new_steps in step_sets:
-            new_results += step_combos(new_steps, num_steps - 1)
+def next_moves(prev_steps):
+    run_length = len(prev_steps)
+    current_dir = prev_steps[0]
+    new_r = (Dir.RIGHT,) * 4
+    new_d = (Dir.DOWN,) * 4
+    new_u = (Dir.UP,) * 4
+    new_l = (Dir.LEFT,) * 4
 
-        return tuple(set(new_results))
+    match current_dir:
+        case Dir.ORIGIN:
+            return new_r, new_d
+        case Dir.LEFT:
+            if run_length == 10:
+                return new_d, new_u
+            else:
+                return new_d, new_u, (Dir.LEFT,)
+        case Dir.RIGHT:
+            if run_length == 10:
+                return new_d, new_u
+            else:
+                return new_d, new_u, (Dir.RIGHT,)
+        case Dir.UP:
+            if run_length == 10:
+                return new_r, new_l
+            else:
+                return new_r, new_l, (Dir.UP,)
+        case Dir.DOWN:
+            if run_length == 10:
+                return new_r, new_l
+            else:
+                return new_r, new_l, (Dir.DOWN,)
 
 
 day_17()
