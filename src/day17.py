@@ -2,8 +2,8 @@ import os
 import functools
 from enum import Enum
 
-INPUT_DIR = os.path.join('input', 'samples')
-# INPUT_DIR = 'input'
+# INPUT_DIR = os.path.join('input', 'samples')
+INPUT_DIR = 'input'
 
 INPUT_FILE = 'day17.txt'
 
@@ -47,9 +47,14 @@ def do_stuff():
 
 
 @functools.cache
-def heat_loss_at(point):
+def heat_loss_thru_move(point, move):
     (x, y) = point
-    return loss_map[y][x]
+    loss = 0
+    for step in move:
+        x, y = new_position((x, y), (step,))
+        loss += loss_map[y][x]
+
+    return loss
 
 
 @functools.cache
@@ -66,18 +71,23 @@ def coord_offsets(step_dir):
 
 
 @functools.cache
-def new_position(current, step_dir):
+def new_position(current, move):
     (x, y) = current
-    offsets = coord_offsets(step_dir)
-    return x + offsets[0], y + offsets[1]
+    for step in move:
+        offsets = coord_offsets(step)
+        x += offsets[0]
+        y += offsets[1]
+    return x, y
 
 
 @functools.cache
-def step_is_possible(current, step_dir):
+def move_is_possible(current, move):
     h = len(loss_map)
     w = len(loss_map[0])
 
-    x, y = new_position(current, step_dir)
+    x, y = current
+    for step in move:
+        x, y = new_position((x, y), (step,))
     return 0 <= x < w and 0 <= y < h
 
 
@@ -106,7 +116,7 @@ def walk_map(destination):
                     new_location_heat_loss = current_heat_loss + heat_loss_thru_move(current, move)
                     if 0 < current_best_solution < new_location_heat_loss:
                         continue
-                    visited_key = (new_location, )
+                    visited_key = (new_location, new_steps)
                     if visited_key not in visited_nodes.keys() or new_location_heat_loss < visited_nodes[visited_key]:
                         visited_nodes[visited_key] = new_location_heat_loss
                         new_unvisited[visited_key] = new_location_heat_loss

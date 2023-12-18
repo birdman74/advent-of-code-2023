@@ -1,8 +1,8 @@
 import os
 from enum import Enum
 
-# INPUT_DIR = os.path.join('input', 'samples')
-INPUT_DIR = 'input'
+INPUT_DIR = os.path.join('input', 'samples')
+# INPUT_DIR = 'input'
 
 INPUT_FILE = 'day18.txt'
 
@@ -33,22 +33,25 @@ def do_stuff():
     trench_spots = {(0,0): False}
     x = 0
     y = 0
-    min_x = 0
-    min_y = 0
-    max_x = 0
-    max_y = 0
 
     for line in lines:
         pieces = line.split()
-        direction = Dir(pieces[0])
-        length = int(pieces[1])
+        instructions = pieces[2][2:8]
+        direction = Dir.RIGHT
+        match instructions[5]:
+            case '1':
+                direction = Dir.DOWN
+            case '2':
+                direction = Dir.LEFT
+            case '3':
+                direction = Dir.UP
+
+        length = int(instructions[0:5], 16)
         for i in range(length):
             x, y = move(x, y, direction)
             new_spot = (x, y)
             if new_spot not in trench_spots.keys():
                 trench_spots[new_spot] = False
-                min_y = min(min_y, y)
-                max_x = max(max_x, x)
 
     total_volume = len(trench_spots) + inside_spot_count(trench_spots)
 
