@@ -1,8 +1,8 @@
 import os
 from enum import Enum
 
-INPUT_DIR = os.path.join('input', 'samples')
-# INPUT_DIR = 'input'
+# INPUT_DIR = os.path.join('input', 'samples')
+INPUT_DIR = 'input'
 
 INPUT_FILE = 'day18.txt'
 
@@ -34,102 +34,42 @@ def do_stuff():
     x = 0
     y = 0
 
+    corners = []
+    trench_length = 0
+
     for line in lines:
         pieces = line.split()
         instructions = pieces[2][2:8]
-        direction = Dir.RIGHT
-        match instructions[5]:
-            case '1':
-                direction = Dir.DOWN
-            case '2':
-                direction = Dir.LEFT
-            case '3':
-                direction = Dir.UP
-
         length = int(instructions[0:5], 16)
-        for i in range(length):
-            x, y = move(x, y, direction)
-            new_spot = (x, y)
-            if new_spot not in trench_spots.keys():
-                trench_spots[new_spot] = False
+        trench_length += length
+        match instructions[5]:
+            case '0':
+                x += length
+            case '1':
+                y += length
+            case '2':
+                x -= length
+            case '3':
+                y -= length
 
-    total_volume = len(trench_spots) + inside_spot_count(trench_spots)
+        corners.append((x, y))
+
+    inner_volume = shoelace(corners)
+
+    total_volume = inner_volume + (trench_length / 2) + 1
 
     print(f'Total volume: {total_volume}\n############################\n')
 
 
-def crawl(perimeter, spot):
-    spots = {spot: False}
-    unvisited = {spot: False}
-    visited = {}
-
-    while len(unvisited) > 0:
-        new_unvisited = {}
-        for x, y in unvisited.keys():
-            left = move(x, y, Dir.LEFT)
-            if left not in visited.keys() and left not in perimeter.keys():
-                visited[left] = False
-                new_unvisited[left] = False
-
-            right = move(x, y, Dir.RIGHT)
-            if right not in visited.keys() and right not in perimeter.keys():
-                visited[right] = False
-                new_unvisited[right] = False
-
-            up = move(x, y, Dir.UP)
-            if up not in visited.keys() and up not in perimeter.keys():
-                visited[up] = False
-                new_unvisited[up] = False
-
-            down = move(x, y, Dir.DOWN)
-            if down not in visited.keys() and down not in perimeter.keys():
-                visited[down] = False
-                new_unvisited[down] = False
-
-        unvisited = new_unvisited
-
-    return visited
-
-
-def inside_spot_count(outside_locations):
-    initial_spot = (1, 1)
-    if point_inside(outside_locations, (1, -1)):
-        initial_spot = (1, -1)
-
-    spots = crawl(outside_locations, initial_spot)
-    return len(spots)
-
-
-def move(x, y, direction):
-    match direction:
-        case Dir.UP:
-            return x, y - 1
-        case Dir.DOWN:
-            return x, y + 1
-        case Dir.LEFT:
-            return x - 1, y
-        case Dir.RIGHT:
-            return x + 1, y
-
-
-def point_inside(outside_locations, start_point):
-    crossings = 0
-
-    x, y = start_point
-
-    y_points = [p for p in outside_locations.keys() if p[0] == x and p[1] > y]
-    y_points.sort()
-
-    crossings = 0
-    for i in range(len(y_points)):
-        y = y_points[i][1]
-
-        if i < len(y_points) - 1 and y_points[i + 1][1] == y + 1:
-            continue
-
-        crossings += 1
-
-    return crossings % 2 == 1
+def shoelace(corners):
+    num_corners = len(corners)
+    area = 0.0
+    for i in range(num_corners):
+        p1 = corners[i]
+        p2 = corners[(i + 1) % num_corners]
+        area += p1[0] * p2[1]
+        area -= p2[0] * p1[1]
+    return abs(area) / 2
 
 
 day_18()
