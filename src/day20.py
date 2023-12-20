@@ -1,5 +1,6 @@
 import os
 from enum import Enum
+from functools import reduce
 
 # INPUT_DIR = os.path.join('input', 'samples')
 INPUT_DIR = 'input'
@@ -13,7 +14,6 @@ INPUT_SOURCE_DIR = os.path.join(PROJECT_DIR, INPUT_DIR)
 BROADCASTER_NAME = 'broadcaster'
 HI = 'hi'
 LO = 'lo'
-BUTTON_PUSHES = 1000
 
 
 class ModuleType(Enum):
@@ -53,18 +53,19 @@ def do_stuff():
             mod.output_modules.append(o_module)
             o_module.input_modules.append(mod)
 
-    num_lo_pulses = 0
-    num_hi_pulses = 0
+    rx_sent_lo = False
+    button_presses = 0
+    while not rx_sent_lo:
+        button_presses += 1
+        # print(f'Executing button press #{button_presses}')
+        rx_sent_lo = push_button(modules, button_presses)
 
-    for i in range(BUTTON_PUSHES):
-        new_lo_pulses, new_hi_pulses = push_button(modules)
-        num_lo_pulses += new_lo_pulses
-        num_hi_pulses += new_hi_pulses
+    button_presses = reduce(lambda x, y: x*y, [m for m in modules['qn'].first_input_hi.values()])
 
-    print(f'Pulse product: {num_hi_pulses * num_lo_pulses}\n############################\n')
+    print(f'Number of button presses to get "rx" sent a low pulse: {button_presses}\n############################\n')
 
 
-def push_button(modules):
+def push_button(modules, push_count):
     lo_pulses = 1 # button push
     hi_pulses = 0
 
@@ -72,13 +73,27 @@ def push_button(modules):
     while len(active_modules) > 0:
         new_active_modules = []
         for from_name, mod_name, pulse in active_modules:
+            if mod_name == 'rx':
+                # print(f'{from_name} -> {pulse} -> {mod_name}')
+                if pulse == LO:
+                    return True
+                elif len([v for v in modules[from_name].past_input_values.values() if v == HI]) > 0:
+                    for input_name in modules[from_name].past_input_values.keys():
+                        if (modules[from_name].past_input_values[input_name] == HI and
+                                input_name not in modules[from_name].first_input_hi.keys()):
+                            modules[from_name].first_input_hi[input_name] = push_count
+                        if len(modules[from_name].first_input_hi) == len(modules[from_name].past_input_values):
+                            return True
+                    # modules[mod_name].print_upstream_state(1, 0)
+                    # print('')
+
             new_lo_pulses, new_hi_pulses = modules[mod_name].process(pulse, from_name, new_active_modules)
             lo_pulses += new_lo_pulses
             hi_pulses += new_hi_pulses
 
         active_modules = new_active_modules
 
-    return lo_pulses, hi_pulses
+    return False
 
 
 class Module:
@@ -89,9 +104,24 @@ class Module:
         self.output_modules = []
         self.on = False
         self.past_input_values = {}
+        self.first_input_hi = {}
 
     def __repr__(self):
         return f'{self.name}: {self.module_type.value}, on={self.on}'
+
+    def orig_name(self):
+        return f'{self.module_type.value}{self.name}'
+
+    def debug_state(self):
+        return (f'{self.orig_name()}, on={self.on}, '
+                f'inputs={[m.orig_name() + '-' + self.past_input_values[m.name] for m in self.input_modules]}')
+
+    def print_upstream_state(self, this_level, more_levels):
+        indent = '\t' * this_level
+        for i_mod in self.input_modules:
+            print(indent + i_mod.debug_state())
+            if more_levels > 0:
+                i_mod.print_upstream_state(this_level + 1, more_levels - 1)
 
     def process(self, pulse, from_name, new_active_modules):
         lo_pulse_count = 0
@@ -125,7 +155,7 @@ class Module:
             case ModuleType.BROADCASTER:
                 lo_pulse_count = len(self.output_modules)
                 for o in self.output_modules:
-                        new_active_modules.append([self.name, o.name, pulse])
+                    new_active_modules.append([self.name, o.name, pulse])
 
         return lo_pulse_count, hi_pulse_count
 
@@ -140,3 +170,9 @@ day_20()
 # broadcaster  : send same pulse to all outputs that it receives
 
 # button       : when pushed sends lo to broadcaster
+
+# &qn -> rx
+# qn inputs must be hi: &qz &cq &jx &tt
+
+# qz: &zq must be low
+# cq: &kx must be low
