@@ -1,4 +1,5 @@
 import os
+import functools
 
 # INPUT_DIR = os.path.join('input', 'samples')
 INPUT_DIR = 'input'
@@ -58,20 +59,35 @@ def do_stuff():
         for b in lowest_bricks:
             b.drop(seated_bricks)
 
-    removable_bricks = 0
+    sum_of_fallen_bricks = 0
 
+    bricks.reverse()
     for b in bricks:
-        can_remove_b = True
-        for topper in b.toppers:
-            if len(topper.supporters) > 1:
-                continue
-            else:
-                can_remove_b = False
-                break
-        if can_remove_b:
-            removable_bricks += 1
+        sum_of_fallen_bricks += all_fall_down_count(b)
 
-    print(f'Bricks that can be safely removed: {removable_bricks}\n############################\n')
+    print(f'Sum of fallen bricks: {sum_of_fallen_bricks}\n############################\n')
+
+
+@functools.cache
+def all_fall_down_count(brick):
+    if len(brick.toppers) == 0:
+        return 0
+
+    bricks_to_evaluate = brick.all_toppers()
+
+    removed_bricks = {brick}
+    newly_removed_brick_count = 1
+    while newly_removed_brick_count > 0:
+        newly_removed_brick_count = 0
+
+        for b in bricks_to_evaluate:
+            if b.supporters.issubset(removed_bricks):
+                removed_bricks.add(b)
+                newly_removed_brick_count += 1
+
+        bricks_to_evaluate = bricks_to_evaluate.difference(removed_bricks)
+
+    return len(removed_bricks) - 1
 
 
 def calc_dimensions(start, end):
@@ -91,6 +107,15 @@ class Brick:
 
     def __hash__(self):
         return hash(self.dims[X]) + (7 * hash(self.dims[Y])) + (47 * hash(self.dims[Z]))
+
+    @functools.cache
+    def all_toppers(self):
+        full_toppers = self.toppers.copy()
+        for t in self.toppers:
+            new_toppers = t.all_toppers()
+            full_toppers.update(new_toppers)
+
+        return full_toppers
 
     def drop(self, seated_bricks):
         low_z = min(self.dims[Z])
