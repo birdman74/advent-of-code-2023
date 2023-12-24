@@ -13,10 +13,6 @@ INPUT_SOURCE_DIR = os.path.join(PROJECT_DIR, INPUT_DIR)
 
 PATH = '.'
 FOREST = '#'
-SLIDE_UP = '^'
-SLIDE_DOWN = 'v'
-SLIDE_RIGHT = '>'
-SLIDE_LEFT = '<'
 
 
 def day_23():
@@ -30,90 +26,107 @@ def do_stuff():
     data_file = open(input_file)
     trail_map = data_file.read().split('\n')
 
-    start = (trail_map[0].find(PATH), 0)
+    first_row = trail_map[0]
+    height = len(trail_map)
+    last_row = trail_map[height - 1]
 
-    most_steps = 0
+    start = (first_row.find(PATH), 0)
+    end = (last_row.find(PATH), height - 1)
 
-    hikes = [Hike(start, trail_map)]
+    weighted_map = build_weighted_map(trail_map, start, end)
 
-    while len(hikes) > 0:
-        hikes_to_remove = []
-        hikes_to_add = []
-        for hike in hikes:
-            next_steps = hike.next_steps()
-            if len(next_steps) == 0:
-                hikes_to_remove.append(hike)
-            else:
-                for i in range(len(next_steps)):
-                    next_step = next_steps[i]
-                    if next_step[1] == len(trail_map) - 1:
-                        most_steps = max(most_steps, len(hike.visited_spots))
-                        hikes_to_remove.append(hike)
-                    else:
-                        if i < len(next_steps) - 1:
-                            hike2 = copy.deepcopy(hike)
-                            hike2.move_to(next_step)
-                            hikes_to_add.append(hike2)
-                        else:
-                            hike.move_to(next_step)
-
-        hike_set = set(hikes) - set(hikes_to_remove)
-        hike_set.update(set(hikes_to_add))
-        hikes = list(hike_set)
+    most_steps = max_path_length(weighted_map, start, end)
 
     print(f'Longest hike: {most_steps} steps\n############################\n')
 
 
-class Hike:
-    def __init__(self, start_pos, trail_map):
-        self.position = start_pos
-        self.trail_map = trail_map
-        self.visited_spots = [self.position]
-        self.trail_height = len(self.trail_map)
-        self.trail_width = len(self.trail_map[0])
-        self.id = random.randint(0, 1000000)
+def max_path_length(weighted_map, start, end):
+    max_paths = {(start,): 0}
 
-    def __hash__(self):
-        return self.id
+    long_path_length = 0
+    while len(max_paths.keys()) > 0:
+        new_max_paths = {}
+        for path in max_paths.keys():
+            path_end = path[-1]
+            for vertex in weighted_map[path_end].keys():
+                if vertex not in path:
+                    new_key = path + (vertex,)
+                    new_path_total = max_paths[path] + weighted_map[path_end][vertex]
+                    if vertex == end:
+                        long_path_length = max(long_path_length, new_path_total)
+                    else:
+                        new_max_paths[new_key] = new_path_total
 
-    def __repr__(self):
-        return f'{self.position}'
+        max_paths = new_max_paths
+        new_max_paths = {}
 
-    def clone(self):
-        h = Hike(self.position, self.trail_map)
-        h.visited_spots = copy.deepcopy(self.visited_spots)
-        return h
+    return long_path_length
 
-    def next_steps(self):
-        (x, y) = self.position
-        return_positions = []
 
-        current_spot = self.trail_map[y][x]
+def find_next_vertex(vertex, branch_point, trail_map, vertices):
+    branch_length = 1
+    spot = branch_point
+    visited = [vertex]
+    while True:
+        if spot in vertices:
+            return branch_length, spot
 
-        if current_spot == SLIDE_DOWN:
-            possible_positions = [(x, y + 1)]
-        elif current_spot == SLIDE_LEFT:
-            possible_positions = [(x - 1, y)]
-        elif current_spot == SLIDE_RIGHT:
-            possible_positions = [(x + 1, y)]
-        elif current_spot == SLIDE_UP:
-            possible_positions = [(x, y - 1)]
-        else:
-            possible_positions = [(x, y + 1), (x, y - 1), (x - 1, y), (x + 1, y)]
+        next_spots = next_steps(spot, trail_map, visited)
+        visited.append(spot)
+        spot = next_spots[0]
+        branch_length += 1
 
-        for p in possible_positions:
-            if p not in self.visited_spots and self.inbounds(p) and self.trail_map[p[1]][p[0]] != FOREST:
-                return_positions.append(p)
 
-        return return_positions
+def build_weighted_map(trail_map, start, end):
+    weighted_map = {}
+    vertices = [start, end] + find_vertices(trail_map)
 
-    def inbounds(self, p):
-        x, y = p
-        return 0 <= x < self.trail_width and 0 <= y < self.trail_height
+    for vertex in vertices:
+        weighted_map[vertex] = {}
 
-    def move_to(self, new_spot):
-        self.position = new_spot
-        self.visited_spots.append(new_spot)
+    for vertex in vertices:
+        branch_points = next_steps(vertex, trail_map, [])
+        for branch_point in branch_points:
+            branch_length, next_vertex = find_next_vertex(vertex, branch_point, trail_map, vertices)
+
+            if next_vertex in weighted_map[vertex].keys():
+                branch_length = max(branch_length,weighted_map[vertex][next_vertex])
+
+            weighted_map[vertex][next_vertex] = branch_length
+            weighted_map[next_vertex][vertex] = branch_length
+
+    return weighted_map
+
+
+def find_vertices(trail_map):
+    vertices = []
+    for y in range(len(trail_map)):
+        for x in range(len(trail_map[0])):
+            current = (x, y)
+            if trail_map[y][x] != FOREST:
+                next_spots = next_steps(current, trail_map, [])
+                if len(next_spots) > 2:
+                    vertices.append(current)
+
+    return vertices
+
+
+def next_steps(vertex, trail_map, visited_spots):
+    (x, y) = vertex
+    possible_steps = []
+    possibilities = [(x, y + 1), (x, y - 1), (x - 1, y), (x + 1, y)]
+    for point in possibilities:
+        if inbounds(point, trail_map) and point not in visited_spots and trail_map[point[1]][point[0]] != FOREST:
+            possible_steps.append(point)
+
+    return possible_steps
+
+
+def inbounds(point, trail_map):
+    (x, y) = point
+    h = len(trail_map)
+    w = len(trail_map[0])
+    return 0 <= x < w and 0 <= y < h
 
 
 day_23()
