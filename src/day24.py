@@ -10,8 +10,6 @@ MODULE_DIR = os.path.dirname(os.path.realpath(__file__))
 PROJECT_DIR = os.path.join(MODULE_DIR, '..')
 INPUT_SOURCE_DIR = os.path.join(PROJECT_DIR, INPUT_DIR)
 
-TIME_SAMPLE = 5
-
 
 def day_24():
     do_stuff()
@@ -24,81 +22,77 @@ def do_stuff():
     data_file = open(input_file)
     stone_data = data_file.read().split('\n')
 
-    stones = []
+    positions = []
     velocities = []
-    ms = []
-    bs = []
 
     for data in stone_data:
         pieces = data.split(' @ ')
-        stone = tuple(list(map(int, pieces[0].strip().split(', '))))
-        velocity = tuple(list(map(int, pieces[1].strip().split(', '))))
-        b = stone[1] - ((velocity[1] / velocity[0]) * stone[0])
-        stones.append(stone)
-        velocities.append(velocity)
-        ms.append(velocity[1] / velocity[0])
-        bs.append(b)
+        positions.append(list(map(int, pieces[0].strip().split(', '))))
+        velocities.append(list(map(int, pieces[1].strip().split(', '))))
 
-    x = 0
-    y = 0
-    z = 0
+    # Normalize the stones 1-3 with the first
+    # This makes the first stone the origin (and non-moving) in a new 3d-space
+    # We will have to de-normalize our answer after finding the initial rock position in the nwe 3d-space
+    new_positions = []
+    new_velocities = []
+    pos_diff = positions[0]
+    vel_diff = velocities[0]
+    for i in range(4):
+        new_positions.append(np.subtract(positions[i], pos_diff))
+        new_velocities.append(np.subtract(velocities[i], vel_diff))
 
-    for a in range(51, len(stones)):
-        print(f'a = {a}')
-        for b in range(len(stones)):
-            print('#', end='')
-            if a == b:
-                continue
-            for c in range(len(stones)):
-                if a == c or b == c:
-                    continue
+    origin = new_positions[0]
 
-                stone_indices = [a, b, c]
-                # print(f'Stone Indices: {stone_indices}')
-                stone_sample = [stones[i] for i in stone_indices]
-                velocity_sample = [velocities[i] for i in stone_indices]
-                positions_t = []
+    # find the "normal" to the origin (stone #0) and the line created by stone #1
+    pos1_t0 = new_positions[1]
+    vel1 = new_velocities[1]
+    pos1_t1 = np.add(pos1_t0, vel1)
 
-                for t in range(TIME_SAMPLE):
-                    positions = []
-                    positions_t.append(positions)
-                    for i in range(len(stone_sample)):
-                        positions.append(np.add(stone_sample[i], np.multiply(velocity_sample[i], t)))
+    norm = np.cross(pos1_t0, pos1_t1)
 
-                    # print(f'Time: {t}, Positions: {positions}')
+    # Now find the intersect of our new "normal" plane with lines from stones #2 and #3
+    # to give us a time reference for our rock
+    pos2_t0 = new_positions[2]
+    vel2 = new_velocities[2]
+    pos2_in_plane, t2 = intersect(origin, norm, pos2_t0, vel2)
 
-                for i in range(len(stone_sample)):
-                    # print(f'Base Rock: {stone_sample[i]}, velocity: {velocity_sample[i]}\n')
-                    other_indices = list(range(len(stone_sample)))
-                    other_indices.remove(i)
-                    other_samples = []
-                    for base_rock_t in range(len(positions_t)):
-                        other_sample_at_t = []
-                        # print(f'Base rock time: {base_rock_t}')
-                        base_rock_position = positions_t[base_rock_t][i]
-                        for t in range(len(positions_t)):
-                            # print(f'Time: {t}')
-                            sample = list(np.subtract(positions_t[t], base_rock_position))
-                            sample = [sample[i1] for i1 in other_indices]
-                            other_sample_at_t.append(sample)
-                            # print(sample)
+    pos3_t0 = new_positions[3]
+    vel3 = new_velocities[3]
+    pos3_in_plane, t3 = intersect(origin, norm, pos3_t0, vel3)
 
-                        other_samples.append(other_sample_at_t)
-                        # print()
+    t_diff = t2 - t3
+    rock_vel = np.divide(np.subtract(pos2_in_plane, pos3_in_plane), t_diff)
+    rock_position_in_plane = np.subtract(pos2_in_plane, np.multiply(rock_vel, t2))
 
-                    for base_rock_t in range(1, len(other_samples)):
-                        samples = other_samples[base_rock_t]
-                        for rock1_t_index in range(1, len(samples)):
-                            for rock2_t_index in range(1, len(samples)):
-                                if rock1_t_index == rock2_t_index or base_rock_t in [rock1_t_index, rock2_t_index]:
-                                    continue
+    rock_position = np.ndarray.tolist(np.add(rock_position_in_plane, pos_diff))
 
-                                if np.array_equal(np.divide(samples[rock1_t_index][0], base_rock_t - rock1_t_index),
-                                                  np.divide(samples[rock2_t_index][1], base_rock_t - rock2_t_index)):
-                                    print(f'Found a match at base rock t = {base_rock_t}.\n Rock 1 time: {rock1_t_index} Rock 2 time: {rock2_t_index}')
-        print()
+    coordinate_sum = sum(rock_position)
 
-    print(f'Sum of initial magical rock coordinates: {x + y + z}\n############################\n')
+    print(f'Rock initial position: {rock_position}')
+    print(f'Sum of initial magical rock coordinates: {coordinate_sum}\n############################\n')
+
+
+# p0: point in normal plane
+# normal: normal for plane created by origin and stone 1
+# pX: position of rock X
+# vX: velocity of rock X
+def intersect(p0, normal, pX, vX):
+    # This was KEY.  Numpy was truncating my position_diff by a TON
+    # which was throwing off all of these calculations.  By forcing
+    # numpy to use a python object I regained my accuracy and all
+    # the rest of the calculations were correct.
+    position_diff = np.subtract(p0, pX, dtype=object)
+    print(f'position_diff: {position_diff}')
+    a = np.dot(position_diff, normal)
+    print(f'a: {a}')
+    b = np.dot(vX, normal)
+    print(f'b: {b}')
+    t = a / b
+    print(f't: {t}')
+    p = np.add(pX, np.multiply(vX, t))
+    print(f'p: {p}\n')
+
+    return p, t
 
 
 day_24()
