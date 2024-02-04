@@ -45,7 +45,6 @@ def karger_min_cut(graph):
     graph_vertex_count = graph.V
     graph_edge_count = graph.E
     edges = graph.edges
-    vertices = graph.vertices
 
     # Allocate memory for creating V subsets.
     subsets = []
